@@ -176,6 +176,7 @@ impl Component for Clock {
 
     view! {
         gtk::Label {
+            add_css_class: "widget-clock",
             set_width_request: label_width.min(i32::MAX as u32) as i32,
             set_justify: gtk::Justification::Center,
 
