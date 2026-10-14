@@ -10,7 +10,7 @@ use std::time::Duration;
 use chrono::{Locale, Utc};
 use chrono_tz::Tz;
 
-use relm4::{gtk::prelude::*, prelude::*};
+use relm4::{gtk::prelude::*, prelude::*, gtk::Align, gtk::Justification};
 use serde::{
     Deserialize, Deserializer,
     de::{self, Visitor},
@@ -46,6 +46,63 @@ pub struct ClockConfig {
     /// The locale to use for time formatting (e.g. "en_US")
     #[serde(deserialize_with = "parse_locale", default = "system_locale")]
     pub locale: Locale,
+
+    /// Alignment of clock widget
+    #[serde(default = "default_halign", deserialize_with = "parse_align")]
+    pub halign: Align,
+
+    #[serde(default = "default_valign", deserialize_with = "parse_align")]
+    pub valign: Align,
+
+    /// Justification inside the clock widget
+    #[serde(default = "default_justification", deserialize_with = "parse_justification")]
+    pub justification: Justification,
+
+    #[serde(default)]
+    pub margin_top: i32,
+
+    #[serde(default)]
+    pub margin_bottom: i32,
+
+    #[serde(default)]
+    pub margin_start: i32,
+
+    #[serde(default)]
+    pub margin_end: i32,
+}
+
+fn default_justification() -> Justification { Justification::Center }
+
+fn default_halign() -> Align { Align::Center }
+
+fn default_valign() -> Align { Align::Start }
+
+fn parse_align<'de, D>(data: D) -> Result<Align, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let s = String::deserialize(data)?;
+    match s.to_lowercase().as_str() {
+        "start" | "left" | "top" => Ok(Align::Start),
+        "end" | "right" | "bottom" => Ok(Align::End),
+        "center" => Ok(Align::Center),
+        "fill" => Ok(Align::Fill),
+        _ => Ok(Align::Center),
+    }
+}
+
+fn parse_justification<'de, D>(data: D) -> Result<Justification, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let s = String::deserialize(data)?;
+    match s.to_lowercase().as_str() {
+        "left" => Ok(Justification::Left),
+        "right" => Ok(Justification::Right),
+        "center" => Ok(Justification::Center),
+        "fill" => Ok(Justification::Fill),
+        _ => Ok(Justification::Center),
+    }
 }
 
 fn weekday_and_24h_time() -> String {
@@ -94,6 +151,13 @@ impl Default for ClockConfig {
             timezone: system_tz(),
             label_width: label_width(),
             locale: system_locale(),
+            halign: default_halign(),
+            valign: default_valign(),
+            margin_top: 0,
+            margin_bottom: 0,
+            margin_start: 0,
+            margin_end: 0,
+            justification: default_justification(),
         }
     }
 }
@@ -158,6 +222,7 @@ pub struct Clock {
     timezone: Tz,
     locale: Locale,
     current_time: String,
+    justification: gtk::Justification,
 }
 
 /// A fixed-interval command output.
@@ -176,8 +241,9 @@ impl Component for Clock {
 
     view! {
         gtk::Label {
+            add_css_class: "widget-clock",
             set_width_request: label_width.min(i32::MAX as u32) as i32,
-            set_justify: gtk::Justification::Center,
+            set_justify: model.justification,
 
             #[watch]
             set_markup: &model.current_time
@@ -191,6 +257,13 @@ impl Component for Clock {
             timezone,
             label_width,
             locale,
+            halign: _,
+            valign: _,
+            margin_top: _,
+            margin_bottom: _,
+            margin_start: _,
+            margin_end: _,
+            justification,
         }: Self::Init,
         root: Self::Root,
         sender: ComponentSender<Self>,
@@ -214,6 +287,7 @@ impl Component for Clock {
             format,
             timezone,
             locale,
+            justification,
         };
 
         let widgets = view_output!();
